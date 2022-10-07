@@ -2,7 +2,7 @@
   "profiles": {
     "GobieDebug": {
       "commandName": "DebugRoslynComponent",
-      "targetProject": "..\\ConsoleClient\\ConsoleClient.csproj"
+      "targetProject": "..\\..\\..\\..\\Trungnt2910.Browser\\Trungnt2910.Browser.csproj"
     }
   }
 }

@@ -309,7 +309,15 @@ public class TargetDiscovery
                 return;
             }
 
-            data.Add(new Mustache.RenderData(ClassNamespace, typeInfo.ContainingNamespace.ToString(), true));
+            var namespaceString = string.Empty;
+            INamespaceOrTypeSymbol currentType = typeInfo;
+            while ((!currentType.ContainingNamespace?.IsGlobalNamespace) ?? false)
+            {
+                namespaceString = currentType.ContainingNamespace!.Name + (string.IsNullOrEmpty(namespaceString) ? "" : $".{namespaceString}");
+                currentType = currentType.ContainingNamespace;
+            }
+
+            data.Add(new Mustache.RenderData(ClassNamespace, namespaceString, true));
             data.Add(new Mustache.RenderData(ClassName, typeInfo.Name, true));
         }
     }
