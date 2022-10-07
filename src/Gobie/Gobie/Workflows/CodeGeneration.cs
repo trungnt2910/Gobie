@@ -41,6 +41,7 @@ public static class CodeGeneration
             {
                 var sb = new StringBuilder();
                 sb.AppendLine(@$"
+                    #nullable enable
                     namespace {group.Key.TargetClass.NamespaceName}
                     {{
                         public partial class {group.Key.TargetClass.ClassName}

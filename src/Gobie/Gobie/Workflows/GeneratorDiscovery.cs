@@ -472,7 +472,7 @@ public static class GeneratorDiscovery
             {{
                 /// <summary> This attribute will cause the generator defined by this thing here to
                 /// run <see cref=""{data.DefinitionIdentifier.FullName}""/> to run. </summary>
-                public sealed class {data.AttributeIdentifier.ClassName} : {data.AttributeBase}
+                internal sealed class {data.AttributeIdentifier.ClassName} : {data.AttributeBase}
                 {{
                     public {data.AttributeIdentifier.ClassName}({string.Join(", ", data.RequiredParameters.Select(x => x.CtorArgumentString))})
                     {{

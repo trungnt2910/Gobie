@@ -1,3 +1,7 @@
+# Trungnt2910.Browser.Gobie
+
+This repo is a fork of Gobie with customizations specifically for building the [DotnetBrowser](https://github.com/trungnt2910/DotnetBrowser) SDK. While you may see some bugfixes and features here and there, the code will mostly won't be in a state that can be used upstream.
+
 # Gobie
 
 [![NuGet](https://shields.io/nuget/v/Gobie.svg)](https://www.nuget.org/packages/Gobie/)

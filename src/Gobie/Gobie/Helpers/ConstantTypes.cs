@@ -16,6 +16,7 @@ public static  class ConstantTypes
         {
             "int" => true,
             "string" => true,
+            "bool" => true,
             _ => false,
         };
     }
