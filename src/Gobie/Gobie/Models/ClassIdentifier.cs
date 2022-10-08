@@ -14,6 +14,8 @@ public readonly struct ClassIdentifier : IEquatable<ClassIdentifier>
 
     public string ClassName { get; }
 
+    public string ClassNameWithoutGenericParameters => ClassName.Split('<')[0];
+
     public string FullName =>
     $"{NamespaceName}{(string.IsNullOrWhiteSpace(NamespaceName) ? "" : ".")}{ClassName}";
 

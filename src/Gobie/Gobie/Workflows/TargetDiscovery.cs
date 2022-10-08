@@ -122,13 +122,13 @@ public class TargetDiscovery
             // another whether that is even viable. And in that case we might be able to see the
             // full class when the dependant lib compiles.
             var attName = att.Name.ToFullString();
-            var ctypeName = attName + (attName.EndsWith("Attribute", StringComparison.OrdinalIgnoreCase) ? "" : "Attribute");
+            var ctypeName = GenericClassHelpers.AppendAttributeToClassName(attName);
 
             foreach (var template in templates)
             {
                 ct.ThrowIfCancellationRequested();
 
-                if (ctypeName == template.AttributeData.AttributeIdentifier.ClassName)
+                if (GenericClassHelpers.IsSameClass(ctypeName, template.AttributeData.AttributeIdentifier.ClassName))
                 {
                     // First thing we do, now that we know we have work to do, is to initialize data
                     // we will use for every template we are generating.
@@ -136,6 +136,14 @@ public class TargetDiscovery
                     syntaxData ??= GetSyntaxData(semanticModel, mds);
 
                     var attributeData = ImmutableDictionary.CreateBuilder<string, Mustache.RenderData>();
+
+                    var attributeTypeArguments = GenericClassHelpers.GetGenericParameters(ctypeName);
+                    var attributeTypeIdentities = GenericClassHelpers.GetGenericParameters(template.AttributeData.AttributeIdentifier.ClassName);
+
+                    for (int i = 0; i < attributeTypeIdentities.Length; i++)
+                    {
+                        attributeData.Add(new Mustache.RenderData(attributeTypeIdentities[i], attributeTypeArguments[i], true));
+                    }
 
                     if (att.ArgumentList is not null)
                     {
@@ -173,15 +181,15 @@ public class TargetDiscovery
                             }
                         }
 
-                        if (attributeData.Count < template.AttributeData.RequiredParameters.Count())
+                        foreach (var param in template.AttributeData.RequiredParameters.Cast<IParameter>()
+                            .Concat(template.AttributeData.OptionalParameters))
                         {
-                            for (int i = attributeData.Count; i < template.AttributeData.RequiredParameters.Count(); i++)
+                            var ident = param.NamePascal;
+                            if (!attributeData.ContainsKey(ident) && !string.IsNullOrEmpty(param.InitializerString))
                             {
-                                var param = template.AttributeData.RequiredParameters.ElementAt(i);
-                                var ident = param.NamePascal;
                                 attributeData.Add(
                                     ident,
-                                    new Mustache.RenderData(ident, param.InitalizerLiteral, true));
+                                    new Mustache.RenderData(ident, param.InitializerString, true));
                             }
                         }
                     }

@@ -367,6 +367,12 @@ public static class GeneratorDiscovery
 
                 genData.WithName(genName!, namespaceName);
                 invalidName = false;
+
+                var multipleVal = attribute.NamedArguments.SingleOrDefault(x => x.Key == "AllowMultiple").Value;
+                if (bool.TryParse(multipleVal.Value?.ToString(), out bool multiple))
+                {
+                    genData.AllowMultiple = multiple;
+                }
                 break;
             }
         }
@@ -383,6 +389,18 @@ public static class GeneratorDiscovery
         }
 
         var requiredPropertyNumber = 1;
+
+        foreach (TypeParameterListSyntax node in cds.ChildNodes().Where(x => x is TypeParameterListSyntax))
+        {
+            ct.ThrowIfCancellationRequested();
+
+            foreach (var subNode in node.Parameters)
+            {
+                genData.GenericParameters.Add(new GenericParameter(string.Empty, string.Empty, subNode.Identifier.Text));
+            }
+
+        }
+
         foreach (PropertyDeclarationSyntax node in cds.ChildNodes().Where(x => x is PropertyDeclarationSyntax))
         {
             ct.ThrowIfCancellationRequested();
@@ -395,9 +413,11 @@ public static class GeneratorDiscovery
             }
 
             var propertyInitalizer = string.Empty;
+            var propertyInitializerValue = string.Empty;
             if (node.Initializer is not null && node.Initializer.Value is LiteralExpressionSyntax les)
             {
                 propertyInitalizer = les.Token.Text;
+                propertyInitializerValue = context.SemanticModel.GetConstantValue(node.Initializer.Value).Value?.ToString() ?? string.Empty;
             }
 
             var propertySymbol = context.SemanticModel.GetDeclaredSymbol(node);
@@ -435,7 +455,8 @@ public static class GeneratorDiscovery
                             requiredPropertyNumber,
                             node.Identifier.Text,
                             propertyType,
-                            propertyInitalizer));
+                            propertyInitalizer,
+                            propertyInitializerValue));
 
                     requiredPropertyNumber++;
 
@@ -448,7 +469,8 @@ public static class GeneratorDiscovery
                 new OptionalParameter(
                             node.Identifier.Text,
                             propertyType,
-                            propertyInitalizer));
+                            propertyInitalizer,
+                            propertyInitializerValue));
         RequiredPropertyHandeled:;
         }
 
@@ -465,9 +487,10 @@ public static class GeneratorDiscovery
             {{
                 /// <summary> This attribute will cause the generator defined by this thing here to
                 /// run <see cref=""{data.DefinitionIdentifier.FullName}""/> to run. </summary>
+                [global::System.AttributeUsage(global::System.AttributeTargets.All, AllowMultiple = {data.AllowMultiple.ToString().ToLowerInvariant()})]
                 internal sealed class {data.AttributeIdentifier.ClassName} : {data.AttributeBase}
                 {{
-                    public {data.AttributeIdentifier.ClassName}({string.Join(", ", data.RequiredParameters.Select(x => x.CtorArgumentString))})
+                    public {data.AttributeIdentifier.ClassNameWithoutGenericParameters}({string.Join(", ", data.RequiredParameters.Select(x => x.CtorArgumentString))})
                     {{
                         {string.Join(Environment.NewLine, data.RequiredParameters.Select(x => x.CtorAssignmentString))}
                     }}
@@ -480,6 +503,6 @@ public static class GeneratorDiscovery
             ";
 
         generatedCode = CSharpSyntaxTree.ParseText(generatedCode).GetRoot().NormalizeWhitespace().ToFullString();
-        spc.AddSource($"_{data.AttributeIdentifier.FullName}.g.cs", generatedCode);
+        spc.AddSource($"_{GenericClassHelpers.EscapeFileName(data.AttributeIdentifier.FullName)}.g.cs", generatedCode);
     }
 }
