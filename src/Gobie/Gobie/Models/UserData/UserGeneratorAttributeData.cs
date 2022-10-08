@@ -18,6 +18,8 @@ public class UserGeneratorAttributeData
         AttributeBase = attributeBase;
     }
 
+    public bool AllowMultiple { get; set; }
+
     public ClassIdentifier DefinitionIdentifier { get; private set; }
 
     public ClassIdentifier AttributeIdentifier { get; private set; }
@@ -25,6 +27,8 @@ public class UserGeneratorAttributeData
     public ClassDeclarationSyntax ClassDeclarationSyntax { get; }
 
     public List<OptionalParameter> OptionalParameters { get; private set; } = new List<OptionalParameter>();
+
+    public List<GenericParameter> GenericParameters { get; } = new List<GenericParameter>();
 
     /// <summary>
     /// Required parameters, in the same order as the constructor.
@@ -39,7 +43,7 @@ public class UserGeneratorAttributeData
     public UserGeneratorAttributeData WithName(string identifier, string? namespaceName)
     {
         namespaceName = string.IsNullOrWhiteSpace(namespaceName) ? AttributeIdentifier.NamespaceName : namespaceName;
-        identifier += identifier.EndsWith("Attribute", StringComparison.OrdinalIgnoreCase) ? "" : "Attribute";
+        identifier = GenericClassHelpers.AppendAttributeToClassName(identifier);
 
         AttributeIdentifier = new ClassIdentifier(namespaceName!, identifier);
 

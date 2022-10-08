@@ -57,7 +57,7 @@ public static class CodeGeneration
                     }");
 
                 var fullCode = CSharpSyntaxTree.ParseText(sb.ToString()).GetRoot().NormalizeWhitespace().ToFullString();
-                var hintName = $"{group.Key.TargetClass.ClassName}_{group.Key.GeneratorName}.g.cs";
+                var hintName = $"{group.Key.TargetClass.ClassName}_{GenericClassHelpers.EscapeFileName(group.Key.GeneratorName)}.g.cs";
                 codeOut.Add(new CodeOutput(hintName, fullCode));
             }
             else if (group.Key.TemplateType == TemplateType.File)
@@ -65,7 +65,7 @@ public static class CodeGeneration
                 var code = group.First().Code; // TODO there should never be more than one.
 
                 var fullCode = CSharpSyntaxTree.ParseText(code).GetRoot().NormalizeWhitespace().ToFullString();
-                var hintName = $"{group.Key.TargetClass.ClassName}_{group.Key.GeneratorName}.g.cs";
+                var hintName = $"{group.Key.TargetClass.ClassName}_{GenericClassHelpers.EscapeFileName(group.Key.GeneratorName)}.g.cs";
                 codeOut.Add(new CodeOutput(hintName, fullCode));
             }
             else if (group.Key.TemplateType == TemplateType.GlobalChild)
