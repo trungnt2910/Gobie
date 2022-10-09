@@ -1,9 +1,8 @@
 ﻿namespace Gobie;
 
-[Generator]
-public class GobieGenerator : IIncrementalGenerator
+public partial class GobieGenerator
 {
-    public void Initialize(IncrementalGeneratorInitializationContext context)
+    public void Initialize(IncrementalGeneratorInitializationContext context, IncrementalValuesProvider<AdditionalClass>? additionalClasses)
     {
         // Find the user templates and report diagnostics on issues.
         var userTemplateSyntaxOrDiagnostics = GeneratorDiscovery.FindUserTemplates(context);
@@ -12,10 +11,34 @@ public class GobieGenerator : IIncrementalGenerator
 
         GeneratorDiscovery.GenerateAttributes(context, userTemplateSyntax);
 
-        var compliationAndGeneratorDeclarations = userTemplateSyntax.Combine(context.CompilationProvider);
+        var compliationAndGeneratorDeclarations = userTemplateSyntax.Combine(context.CompilationProvider.Select((c, ct) => (Compilation?)c));
         var userGeneratorsOrDiagnostics = GeneratorDiscovery.GetFullGenerators(compliationAndGeneratorDeclarations);
         DiagnosticsReporting.Report(context, userGeneratorsOrDiagnostics);
         var userGenerators = ExtractData(userGeneratorsOrDiagnostics);
+
+        var userGeneratorArray = userGenerators.Collect();
+
+        if (additionalClasses != null)
+        {
+            var additionalTemplateSyntaxOrDiagnostics = GeneratorDiscovery.FindUserTemplates(additionalClasses.Value);
+            DiagnosticsReporting.Report(context, additionalTemplateSyntaxOrDiagnostics);
+            var additionalTemplateSyntax = ExtractData(additionalTemplateSyntaxOrDiagnostics);
+
+            GeneratorDiscovery.GenerateAttributes(context, additionalTemplateSyntax);
+
+            var additionalCompliationAndGeneratorDeclarations = additionalTemplateSyntax.Combine(context.CompilationProvider.Select((c, ct) => (Compilation?)null));
+            var additionalGeneratorsOrDiagnostics = GeneratorDiscovery.GetFullGenerators(additionalCompliationAndGeneratorDeclarations);
+            DiagnosticsReporting.Report(context, additionalGeneratorsOrDiagnostics);
+            var additionalGenerators = ExtractData(additionalGeneratorsOrDiagnostics);
+
+            userGeneratorArray = userGenerators.Collect()
+                .Combine(additionalGenerators.Collect())
+                .Select((arrs, ct) =>
+                {
+                    var (arr1, arr2) = arrs;
+                    return ImmutableArray.Create(arr1.Concat(arr2).ToArray());
+                });
+        }
 
         // TODO look for gobie settings coming from attributes
         var assemblyAtt = AssemblyAttributes.FindAssemblyAttributes(context);
@@ -23,7 +46,7 @@ public class GobieGenerator : IIncrementalGenerator
         // ========== Target Discovery Workflow ================
         // First: Discover classes and field targets.
         var mwa = TargetDiscovery.FindMembersWithAttributes(context);
-        var mwaAndGenerators = mwa.Combine(userGenerators.Collect());
+        var mwaAndGenerators = mwa.Combine(userGeneratorArray);
         var probableTargets = TargetDiscovery.FindProbableTargets(mwaAndGenerators);
         var compliationAndProbableTargets = probableTargets.Where(x => x is not null).Combine(context.CompilationProvider);
         var targetsOrDiagnostics = TargetDiscovery.GetTargetsOrDiagnostics(compliationAndProbableTargets);
@@ -31,7 +54,7 @@ public class GobieGenerator : IIncrementalGenerator
         var memberTargets = ExtractManyData(targetsOrDiagnostics);
 
         // Second: Discover assembly targets (i.e. Requests for global template gen).
-        var assemblyAttributesAndGenerators = assemblyAtt.Combine(userGenerators.Collect());
+        var assemblyAttributesAndGenerators = assemblyAtt.Combine(userGeneratorArray);
         var probableAssemblyTargets = TargetDiscovery.FindProbableAssemblyTargets(assemblyAttributesAndGenerators);
         var compliationAndProbableAssemblyTargets = probableAssemblyTargets.Where(x => x is not null).Combine(context.CompilationProvider);
         var assemblyTargetsOrDiagnostics = TargetDiscovery.GetAssemblyTargetsOrDiagnostics(compliationAndProbableAssemblyTargets);

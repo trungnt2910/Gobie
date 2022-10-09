@@ -20,6 +20,8 @@ public class UserGeneratorAttributeData
 
     public bool AllowMultiple { get; set; }
 
+    public Compilation? Compilation { get; set; }
+
     public ClassIdentifier DefinitionIdentifier { get; private set; }
 
     public ClassIdentifier AttributeIdentifier { get; private set; }

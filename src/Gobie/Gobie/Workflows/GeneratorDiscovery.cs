@@ -20,20 +20,30 @@ public static class GeneratorDiscovery
             .Where(static x => x is not null)!;
     }
 
+    public static IncrementalValuesProvider<DataOrDiagnostics<UserGeneratorAttributeData>> FindUserTemplates(IncrementalValuesProvider<AdditionalClass> additionalClasses)
+    {
+        return additionalClasses
+            .Select((a, ct) => 
+                GetUserTemplate(a.ClassDeclaration, a.SemanticModel, ct))
+            .Where(static x => x is not null)!;
+    }
+
     public static IncrementalValuesProvider<DataOrDiagnostics<UserGeneratorTemplateData>> GetFullGenerators(
-        IncrementalValuesProvider<(UserGeneratorAttributeData Left, Compilation Right)> compliationAndGeneratorDeclarations)
+        IncrementalValuesProvider<(UserGeneratorAttributeData Left, Compilation? Right)> compliationAndGeneratorDeclarations)
     {
         return compliationAndGeneratorDeclarations.Select(static (s, ct) => GetFullTemplateDeclaration(s, ct));
     }
 
     private static DataOrDiagnostics<UserGeneratorTemplateData> GetFullTemplateDeclaration(
-        (UserGeneratorAttributeData, Compilation) s,
+        (UserGeneratorAttributeData, Compilation?) s,
         CancellationToken ct)
     {
-        var (data, compliation) = (s.Item1, s.Item2);
+        var (data, compilation) = (s.Item1, s.Item2);
         var diagnostics = new List<Diagnostic>();
 
-        var model = compliation.GetSemanticModel(data.ClassDeclarationSyntax.SyntaxTree);
+        compilation ??= data.Compilation!;
+
+        var model = compilation.GetSemanticModel(data.ClassDeclarationSyntax.SyntaxTree);
         var symbol = model.GetDeclaredSymbol(data.ClassDeclarationSyntax);
 
         if (symbol is null)
@@ -41,7 +51,7 @@ public static class GeneratorDiscovery
             return new(diagnostics);
         }
 
-        var templates = GetTemplates(data.ClassDeclarationSyntax, compliation);
+        var templates = GetTemplates(data.ClassDeclarationSyntax, compilation);
         var templateDefs = new List<Mustache.TemplateDefinition>();
         foreach (var template in templates)
         {
@@ -58,7 +68,7 @@ public static class GeneratorDiscovery
             }
         }
 
-        var globalChildTemplates = GetGlobalChildTemplates(data.ClassDeclarationSyntax, compliation);
+        var globalChildTemplates = GetGlobalChildTemplates(data.ClassDeclarationSyntax, compilation);
         var globalChildTemplateDefs = new List<GlobalChildTemplateData>();
         foreach (var template in globalChildTemplates)
         {
@@ -75,7 +85,7 @@ public static class GeneratorDiscovery
             }
         }
 
-        var globalTemplates = GetGlobalTemplates(data.ClassDeclarationSyntax, compliation, ct);
+        var globalTemplates = GetGlobalTemplates(data.ClassDeclarationSyntax, compilation, ct);
         var globalTemplateDefs = new List<GlobalTemplateData>();
         foreach (var template in globalTemplates)
         {
@@ -104,7 +114,7 @@ public static class GeneratorDiscovery
             }
         }
 
-        var fileTemplates = GetFileTemplates(data.ClassDeclarationSyntax, compliation);
+        var fileTemplates = GetFileTemplates(data.ClassDeclarationSyntax, compilation);
         var fileTemplateDefs = new List<UserFileTemplateData>();
         foreach (var template in fileTemplates)
         {
@@ -153,8 +163,8 @@ public static class GeneratorDiscovery
             {
                 foreach (AttributeSyntax att in f.AttributeLists.SelectMany(x => x.Attributes))
                 {
-                    var a = ((IdentifierNameSyntax)att.Name).Identifier;
-                    if (a.Text == "GobieTemplate")
+                    var a = att.Name.ToString();
+                    if (a.EndsWith("GobieTemplate"))
                     {
                         foreach (var variable in f.Declaration.Variables)
                         {
@@ -187,8 +197,8 @@ public static class GeneratorDiscovery
             {
                 foreach (AttributeSyntax att in f.AttributeLists.SelectMany(x => x.Attributes))
                 {
-                    var a = ((IdentifierNameSyntax)att.Name).Identifier;
-                    if (a.Text == "GobieFileTemplate")
+                    var a = att.Name.ToString();
+                    if (a.EndsWith("GobieFileTemplate"))
                     {
                         foreach (var variable in f.Declaration.Variables)
                         {
@@ -197,9 +207,9 @@ public static class GeneratorDiscovery
 
                             if (fieldSymbol is IFieldSymbol fs && fs.ConstantValue is not null)
                             {
-                                var ad = fieldSymbol.GetAttributes().First(x => x.AttributeClass.Name == "GobieFileTemplateAttribute");
+                                var ad = fieldSymbol.GetAttributes().First(x => x.AttributeClass?.Name == "GobieFileTemplateAttribute");
                                 var fn = ad.ConstructorArguments[0].Value;
-                                templates.Add((fn.ToString(), fs.ConstantValue.ToString()));
+                                templates.Add((fn?.ToString() ?? string.Empty, fs.ConstantValue.ToString()));
                                 goto DoneWithField;
                             }
                         }
@@ -223,8 +233,8 @@ public static class GeneratorDiscovery
             {
                 foreach (AttributeSyntax att in f.AttributeLists.SelectMany(x => x.Attributes))
                 {
-                    var a = ((IdentifierNameSyntax)att.Name).Identifier;
-                    if (a.Text == "GobieGlobalChildTemplate")
+                    var a = att.Name.ToString();
+                    if (a.EndsWith("GobieGlobalChildTemplate"))
                     {
                         foreach (var variable in f.Declaration.Variables)
                         {
@@ -233,9 +243,9 @@ public static class GeneratorDiscovery
 
                             if (fieldSymbol is IFieldSymbol fs && fs.ConstantValue is not null)
                             {
-                                var ad = fieldSymbol.GetAttributes().First(x => x.AttributeClass.Name == "GobieGlobalChildTemplateAttribute");
+                                var ad = fieldSymbol.GetAttributes().First(x => x.AttributeClass?.Name == "GobieGlobalChildTemplateAttribute");
                                 var fn = ad.ConstructorArguments[0].Value;
-                                templates.Add((fn.ToString(), fs.ConstantValue.ToString()));
+                                templates.Add((fn?.ToString() ?? string.Empty, fs.ConstantValue.ToString()));
                                 goto DoneWithField;
                             }
                         }
@@ -264,8 +274,8 @@ public static class GeneratorDiscovery
             {
                 foreach (AttributeSyntax att in f.AttributeLists.SelectMany(x => x.Attributes))
                 {
-                    var a = ((IdentifierNameSyntax)att.Name).Identifier;
-                    if (a.Text == "GobieGlobalFileTemplate")
+                    var a = att.Name.ToString();
+                    if (a.EndsWith("GobieGlobalFileTemplate"))
                     {
                         foreach (var variable in f.Declaration.Variables)
                         {
@@ -275,10 +285,10 @@ public static class GeneratorDiscovery
                             if (fieldSymbol is IFieldSymbol fs && fs.ConstantValue is not null)
                             {
                                 var awre = fieldSymbol.GetAttributes();
-                                var ad = fieldSymbol.GetAttributes().First(x => x.AttributeClass.Name == "GobieGlobalFileTemplateAttribute");
+                                var ad = fieldSymbol.GetAttributes().First(x => x.AttributeClass?.Name == "GobieGlobalFileTemplateAttribute");
                                 var generatorName = ad.ConstructorArguments[0].Value;
                                 var fn = ad.ConstructorArguments[1].Value;
-                                templates.Add((generatorName.ToString(), fn.ToString(), fs.ConstantValue.ToString()));
+                                templates.Add((generatorName?.ToString() ?? string.Empty, fn?.ToString() ?? string.Empty, fs.ConstantValue.ToString()));
                                 goto DoneWithField;
                             }
                         }
@@ -316,7 +326,14 @@ public static class GeneratorDiscovery
         GeneratorSyntaxContext context,
         CancellationToken ct)
     {
-        var cds = (ClassDeclarationSyntax)context.Node;
+        return GetUserTemplate((ClassDeclarationSyntax)context.Node, context.SemanticModel, ct);
+    }
+
+    private static DataOrDiagnostics<UserGeneratorAttributeData>? GetUserTemplate(
+        ClassDeclarationSyntax cds,
+        SemanticModel semanticModel,
+        CancellationToken ct)
+    {
         var classLocation = cds.Identifier.GetLocation();
 
         if (cds.BaseList is null)
@@ -336,6 +353,8 @@ public static class GeneratorDiscovery
         var ident = new ClassIdentifier("Gobie", cds.Identifier.ToString());
         var genData = new UserGeneratorAttributeData(ident, cds, Config.GenToAttribute[gobieBaseTypeName.ToString()]);
 
+        genData.Compilation = semanticModel.Compilation;
+
         var diagnostics = new List<Diagnostic>();
         if (cds.Modifiers.Any(x => x.IsKind(SyntaxKind.PartialKeyword)))
         {
@@ -347,7 +366,7 @@ public static class GeneratorDiscovery
             diagnostics.Add(Diagnostic.Create(Errors.UserTemplateIsNotSealed, classLocation));
         }
 
-        var classSymbol = context.SemanticModel.GetDeclaredSymbol(context.Node);
+        var classSymbol = semanticModel.GetDeclaredSymbol(cds);
 
         var invalidName = !cds.Identifier.ToString().EndsWith("Generator", StringComparison.OrdinalIgnoreCase);
         foreach (var attribute in classSymbol!.GetAttributes())
@@ -424,10 +443,10 @@ public static class GeneratorDiscovery
             if (node.Initializer is not null && node.Initializer.Value is LiteralExpressionSyntax les)
             {
                 propertyInitalizer = les.Token.Text;
-                propertyInitializerValue = context.SemanticModel.GetConstantValue(node.Initializer.Value).Value?.ToString() ?? string.Empty;
+                propertyInitializerValue = semanticModel.GetConstantValue(node.Initializer.Value).Value?.ToString() ?? string.Empty;
             }
 
-            var propertySymbol = context.SemanticModel.GetDeclaredSymbol(node);
+            var propertySymbol = semanticModel.GetDeclaredSymbol(node);
             if (propertySymbol is null)
             {
                 // TODO is this a problem?
