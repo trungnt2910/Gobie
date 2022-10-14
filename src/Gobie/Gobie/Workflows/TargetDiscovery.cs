@@ -4,6 +4,7 @@ public class TargetDiscovery
 {
     private const string ClassName = "ClassName";
     private const string ClassNamespace = "ClassNamespace";
+    private const string ClassNameWithoutGenericParameters = "ClassNameWithoutGenericParameters";
 
     public static IncrementalValuesProvider<MemberDeclarationSyntax> FindMembersWithAttributes(IncrementalGeneratorInitializationContext context)
     {
@@ -328,8 +329,15 @@ public class TargetDiscovery
                 currentType = currentType.ContainingNamespace;
             }
 
+            var nameString = typeInfo.Name;
+            if (cds.TypeParameterList != null && cds.TypeParameterList.Parameters.Any())
+            {
+                nameString += $"<{string.Join(",", cds.TypeParameterList.Parameters.Select(typeParam => typeParam.Identifier.Text))}>";
+            }
+
             data.Add(new Mustache.RenderData(ClassNamespace, namespaceString, true));
-            data.Add(new Mustache.RenderData(ClassName, typeInfo.Name, true));
+            data.Add(new Mustache.RenderData(ClassName, nameString, true));
+            data.Add(new Mustache.RenderData(ClassNameWithoutGenericParameters, typeInfo.Name, true));
         }
     }
 
