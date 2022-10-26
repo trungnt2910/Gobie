@@ -1,6 +1,4 @@
-﻿using System.Security.Cryptography.X509Certificates;
-
-namespace Gobie.Helpers;
+﻿namespace Gobie.Helpers;
 
 public static class GenericClassHelpers
 {
@@ -13,9 +11,9 @@ public static class GenericClassHelpers
         {
             identifier += "Attribute";
         }
-        if (!string.IsNullOrEmpty(identifierAndGenericParts.ElementAtOrDefault(1)))
+        if (identifierAndGenericParts.Length > 1)
         {
-            identifier += "<" + identifierAndGenericParts[1];
+            identifier += "<" + string.Join("<", identifierAndGenericParts.Skip(1));
         }
 
         return identifier;
@@ -39,7 +37,7 @@ public static class GenericClassHelpers
             return false;
         }
 
-        if (classA.Count(ch => ch == ',') != classB.Count(ch => ch == ','))
+        if (GetGenericParameters(classA).Length != GetGenericParameters(classB).Length)
         {
             return false;
         }
@@ -50,20 +48,56 @@ public static class GenericClassHelpers
     public static string[] GetGenericParameters(string className)
     {
         var listOpening = className.IndexOf('<');
-        var listClosing = className.IndexOf('>');
+        var listClosing = className.LastIndexOf('>');
 
         if (listOpening == -1)
         {
             return Array.Empty<string>();
         }
 
-        var list = className.Substring(listOpening + 1, listClosing - (listOpening + 1)).Split(',');
+        var paramString = className.Substring(listOpening + 1, listClosing - (listOpening + 1));
 
-        return list.Select(x => x.Trim()).ToArray();
+        var result = new List<string>();
+        var currentString = new StringBuilder();
+        var currentLevel = 0;
+
+        foreach (var ch in paramString)
+        {
+            switch (ch)
+            {
+                case '<':
+                    ++currentLevel;
+                break;
+                case '>':
+                    --currentLevel;
+                break;
+                case ',':
+                    if (currentLevel == 0)
+                    {
+                        result.Add(currentString.ToString().Trim());
+                        currentString.Clear();
+                        continue;
+                    }
+                break;
+            }
+
+            currentString.Append(ch);
+        }
+
+        if (currentLevel == 0)
+        {
+            result.Add(currentString.ToString().Trim());
+        }
+        else
+        {
+            throw new ArgumentException($"\"{className}\" is not a valid class name.");
+        }
+
+        return result.ToArray();
     }
 
     public static string EscapeFileName(string className)
     {
-        return className.Replace('<', '[').Replace('>', ']');
+        return className.Replace('<', '[').Replace('>', ']').Replace('?', '-');
     }
 }

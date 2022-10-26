@@ -358,7 +358,7 @@ public class TargetDiscovery
         foreach (var item in mds.AttributeLists.SelectMany(x => x.Attributes))
         {
             ct.ThrowIfCancellationRequested();
-            var classAttName = (item.Name as IdentifierNameSyntax)?.Identifier.Text;
+            var classAttName = (item.Name as SimpleNameSyntax)?.Identifier.Text;
             if (classAttName is null) continue;
             classAttName += classAttName.EndsWith("Attribute", StringComparison.OrdinalIgnoreCase) ? "" : "Attribute";
 
